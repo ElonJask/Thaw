@@ -3982,6 +3982,10 @@ extension MenuBarItemManager {
 
         let completionGenerationBeforeApply = bulkApplyCompletionGeneration
         let restorationIdentifiersAtDispatch = triggerLayoutRestorationItemIdentifiers
+        // One-shot from sortSection's no-active-profile branch: honour the
+        // sorted concealed-section order this apply instead of relaxing it.
+        let enforceConcealed = enforceConcealedSectionOrderOnNextSavedApply
+        enforceConcealedSectionOrderOnNextSavedApply = false
         await applyProfileLayout(
             ProfileLayoutSpec(
                 pinnedHidden: pinnedHiddenBundleIDs,
@@ -3993,6 +3997,7 @@ extension MenuBarItemManager {
             source: .savedOrder,
             automatic: true,
             duringSettling: resolvedIdentitiesOnly,
+            enforceConcealedSectionOrder: enforceConcealed,
             shouldBegin: {
                 self.layoutBatchIsCurrent(batchLease) && (shouldBegin?() ?? true)
             }

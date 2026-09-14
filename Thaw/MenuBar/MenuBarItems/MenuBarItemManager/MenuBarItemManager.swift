@@ -294,6 +294,12 @@ final class MenuBarItemManager {
     /// Suppresses the next automatic relocation of newly seen leftmost items.
     var suppressNextNewLeftmostItemRelocation = false
 
+    /// One-shot: the next saved-layout apply honours concealed-section order
+    /// instead of relaxing it. Armed by ``sortSection`` when there is no
+    /// active profile, since that path reorders through the saved-layout
+    /// apply rather than a profile reapply. Cleared after one use.
+    var enforceConcealedSectionOrderOnNextSavedApply = false
+
     @MainActor
     deinit {
         rehideTimer?.invalidate()
@@ -1515,6 +1521,12 @@ final class MenuBarItemManager {
             }
             profileManager.reapplyActiveProfile(enforceConcealedSectionOrder: true)
         } else {
+            // The saved-layout apply (run by the cache cycle below) relaxes
+            // concealed-section order by default, so without the flag a
+            // hidden/always-hidden sort would persist to disk but never
+            // reach the bar. The flag is one-shot: the cache cycle clears
+            // it after the apply it triggers.
+            enforceConcealedSectionOrderOnNextSavedApply = true
             Task { [weak self] in
                 await self?.cacheItemsRegardless()
             }
