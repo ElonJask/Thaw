@@ -143,6 +143,8 @@ Corrupted Control Center state from 0.29.x can also cause **Little Snitch**, **T
 
 Connecting, disconnecting, or switching displays can cause brief visual glitches (resolution flicker, extra spacing), often transient. Thaw may relaunch apps with menu bar items when a display transition requires applying different spacing, which can produce duplicate icons if the host app also relaunches its agent. The duplicate usually belongs to the app, not Thaw.
 
+Thaw may relaunch apps with menu bar items when a display transition requires applying different menu bar spacing. That can produce duplicate icons if the host app also relaunches its agent. The duplicate usually belongs to the app, not Thaw. Thaw does not quit macOS system services during this; see [What Thaw will and won't quit](#what-thaw-will-and-wont-quit).
+
 Fix:
 
 1. Enable **Confirm before relaunching apps** in **Settings → Displays**.
@@ -159,9 +161,21 @@ Fix:
 
 1. Return spacing to the default and confirm all items are reachable.
 2. Re-apply spacing in small steps.
-3. If a system app crashes when spacing changes (for example Spotlight), treat it as an upstream macOS issue ([#720](https://github.com/thaw-app/Thaw/issues/720)).
+3. If a system app is missing after a spacing change (for example Spotlight), restart it with `launchctl kickstart -k gui/$(id -u)/com.apple.Spotlight`, or log out and back in.
 
 Related: [#664](https://github.com/thaw-app/Thaw/issues/664).
+
+## What Thaw will and won't quit
+
+Menu bar spacing lives in a single system-wide preference, and a status item only picks up a new value when its owning process starts. To apply spacing right away, Thaw restarts the apps that own menu bar items. It sorts them into three groups first:
+
+- **Apps macOS launches for you** (Spotlight, the input menu, Dock, Time Machine) are restarted through `launchctl kickstart`, so launchd stays their launching parent. Quitting one and relaunching it directly is rejected by macOS at exec, and the item would stay gone until you rebooted ([#720](https://github.com/thaw-app/Thaw/issues/720)).
+- **System binaries no LaunchAgent claims** are left alone entirely. Thaw has no way to bring them back, so it never takes them down ([#1070](https://github.com/thaw-app/Thaw/issues/1070)).
+- **Your own apps** are asked to quit and launched again. Thaw asks; it never force-quits. An app that declines (a save sheet, a long operation) keeps running and keeps the previous spacing.
+
+The trade-off is that anything Thaw skips keeps its old spacing until it next starts on its own. Spacing changes are rare; a permanently dead Spotlight is not worth an evenly spaced menu bar.
+
+If you would rather Thaw never restart apps, set **When applying spacing** to **Wait until next restart** in **Settings → Displays**. Thaw still writes the new spacing to the system preference, but leaves every app running; the new spacing appears the next time each app starts on its own (after a restart, or when you reopen it). This avoids the restart disruption when plugging in or unplugging monitors, at the cost of spacing not taking effect immediately.
 
 ## Screen Recording and permission prompts
 

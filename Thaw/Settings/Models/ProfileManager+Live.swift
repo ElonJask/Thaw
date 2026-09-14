@@ -8,8 +8,8 @@
 
 import Cocoa
 
-/// The live half of ``ProfileManager``: everything whose substance needs a
-/// running `AppState` — pushing snapshots into live managers, the spacing
+/// The live half of ProfileManager: everything whose substance needs a
+/// running AppState — pushing snapshots into live managers, the spacing
 /// relaunch wave, WindowServer display identity via Bridging, Carbon hotkey
 /// registration, and Focus Filter intents. None of that can run in a unit
 /// test, so this file is excluded from coverage in sonar-project.properties.
@@ -35,7 +35,7 @@ extension ProfileManager {
 
         // Note: profiles' didSet already calls rebuildProfileHotkeys() for
         // every assignment after this class's own init, so no explicit
-        // subscription is needed here (see the doc comment on `profiles`).
+        // subscription is needed here (see the doc comment on profiles).
 
         startObservationTasks()
 
@@ -136,6 +136,9 @@ extension ProfileManager {
         layoutTask?.cancel()
         layoutGeneration &+= 1
         let generation = layoutGeneration
+        guard let batchLease = appState.itemManager.beginLayoutBatch(.explicitProfile) else {
+            return
+        }
 
         let pinnedHidden = Set(profile.menuBarLayout.pinnedHiddenBundleIDs)
         let pinnedAlwaysHidden = Set(profile.menuBarLayout.pinnedAlwaysHiddenBundleIDs)
@@ -162,6 +165,8 @@ extension ProfileManager {
         )
 
         layoutTask = Task { [weak self] in
+            defer { appState.itemManager.finishLayoutBatch(batchLease) }
+
             // 1. Pre-hooks. Global runs first so it can do common setup;
             //    profile-specific runs second so it can override or extend.
             await HookRunner.runIfEnabled(globalPre, context: HookRunner.Context(
@@ -263,7 +268,10 @@ extension ProfileManager {
                     sectionOrder: sectionOrder,
                     itemSectionMap: itemSectionMap,
                     itemOrder: itemOrder
-                )
+                ),
+                shouldBegin: {
+                    appState.itemManager.layoutBatchIsCurrent(batchLease)
+                }
             )
 
             // 3. Post-hooks. Profile runs first (mirror of the pre order),
@@ -445,7 +453,7 @@ extension ProfileManager {
     /// associated with the new active display and applies it.
     /// Skipped when a Focus Filter profile is currently active.
     ///
-    /// Internal rather than private because `startObservationTasks()` — which
+    /// Internal rather than private because startObservationTasks() — which
     /// stays in the measured file so its wiring remains testable — installs
     /// the closure that calls it.
     func checkDisplayAndAutoSwitch() async {
@@ -461,7 +469,8 @@ extension ProfileManager {
         // waking, a resolution change). Let the Space keep the bar it
         // asked for rather than having the display overwrite it.
         if let spaceKey = SpaceInfo.activeSpace().persistentKey,
-           profile(forSpaceKey: spaceKey) != nil {
+           profile(forSpaceKey: spaceKey) != nil
+        {
             diagLog.debug("Display auto-switch yielding to Space association \(spaceKey)")
             return
         }
@@ -536,7 +545,7 @@ extension ProfileManager {
     /// Called when the Focus Filter deactivates (Focus mode turned off).
     /// Reverts to the display-based profile.
     ///
-    /// Internal for the same reason as ``checkDisplayAndAutoSwitch()``.
+    /// Internal for the same reason as checkDisplayAndAutoSwitch().
     func handleFocusFilterDeactivated() async {
         guard focusFilterActive else { return }
         focusFilterActive = false
