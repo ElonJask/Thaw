@@ -889,6 +889,7 @@ extension MenuBarItemManager {
         source: ApplySource = .profile,
         automatic: Bool = false,
         duringSettling: Bool = false,
+        enforceConcealedSectionOrder: Bool = false,
         shouldBegin: (@MainActor () -> Bool)? = nil
     ) async {
         let pinnedHidden = spec.pinnedHidden
@@ -2627,8 +2628,13 @@ extension MenuBarItemManager {
         // planned moves so the LCS itself sees those items as already in
         // place: filtering moves out afterwards would leave the surviving
         // moves anchored against items the plan assumed had shifted.
-        let enforceConcealedOrder = (Defaults.object(forKey: .enforceConcealedSectionOrder) as? Bool)
-            ?? Defaults.DefaultValue.enforceConcealedSectionOrder
+        //
+        // An explicit Sort A→Z passes `enforceConcealedSectionOrder: true`
+        // so the sorted intra-section order survives to the move pass
+        // instead of being rewritten back to the current order.
+        let enforceConcealedOrder = enforceConcealedSectionOrder
+            || ((Defaults.object(forKey: .enforceConcealedSectionOrder) as? Bool)
+                ?? Defaults.DefaultValue.enforceConcealedSectionOrder)
         if !enforceConcealedOrder {
             desiredNoControls = LayoutSolver.relaxConcealedSectionOrder(
                 desiredNoControls: desiredNoControls,

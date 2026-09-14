@@ -1513,7 +1513,7 @@ final class MenuBarItemManager {
                 MenuBarItemManager.diagLog.error("sortSection: profile update failed; rolled back savedSectionOrder")
                 return nil
             }
-            profileManager.reapplyActiveProfile()
+            profileManager.reapplyActiveProfile(enforceConcealedSectionOrder: true)
         } else {
             Task { [weak self] in
                 await self?.cacheItemsRegardless()

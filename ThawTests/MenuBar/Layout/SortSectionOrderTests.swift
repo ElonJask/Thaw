@@ -60,4 +60,43 @@ struct SortSectionOrderTests {
     func emptySectionSortsToEmpty() {
         #expect(LayoutSolver.sortedSectionIdentifiers([]) { $0.tag.title } == [])
     }
+
+    /// `applyProfileLayout` relaxes concealed-section order by default so
+    /// background work does not reorder off-screen items. Sort A→Z passes
+    /// `enforceConcealedSectionOrder: true` to skip that relaxation, so a
+    /// hidden/always-hidden sort reaches the bar instead of only persisting.
+    @Test("A concealed-section sort plans moves only when enforced")
+    func concealedSortPlansMovesOnlyWhenEnforced() {
+        // Two hidden items the user wants in A→Z order; the bar holds them
+        // reversed. Visible stays put either way.
+        let sectionMap = ["a": "visible", "b": "hidden", "c": "hidden"]
+        let current = ["a", "c", "b"]
+        let desired = ["a", "b", "c"]
+
+        // Default path (background reapply): relaxation surrenders the
+        // hidden order, the LCS sees the bar as already correct, no moves.
+        let relaxed = LayoutSolver.relaxConcealedSectionOrder(
+            desiredNoControls: desired,
+            currentNoControls: current,
+            sectionMap: sectionMap
+        )
+        #expect(relaxed == current)
+        #expect(
+            LayoutSolver.planLCSMoveSequence(
+                currentNoControls: current,
+                desiredNoControls: relaxed,
+                sectionMap: sectionMap
+            ).isEmpty
+        )
+
+        // Enforced path (Sort A→Z): the relaxation is skipped, so the LCS
+        // sees the sorted order and plans the swap.
+        #expect(
+            !LayoutSolver.planLCSMoveSequence(
+                currentNoControls: current,
+                desiredNoControls: desired,
+                sectionMap: sectionMap
+            ).isEmpty
+        )
+    }
 }
