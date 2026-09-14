@@ -125,7 +125,8 @@ extension ProfileManager {
     func applyProfile(
         _ profile: Profile,
         to appState: AppState,
-        previousProfileID: UUID? = nil
+        previousProfileID: UUID? = nil,
+        enforceConcealedSectionOrder: Bool = false
     ) {
         diagLog.debug(
             "applyProfile entered: name=\(profile.name)"
@@ -269,6 +270,7 @@ extension ProfileManager {
                     itemSectionMap: itemSectionMap,
                     itemOrder: itemOrder
                 ),
+                enforceConcealedSectionOrder: enforceConcealedSectionOrder,
                 shouldBegin: {
                     appState.itemManager.layoutBatchIsCurrent(batchLease)
                 }
@@ -566,7 +568,7 @@ extension ProfileManager {
     /// them. The applyOffset inside layoutTask no-ops (the on-disk values
     /// were just written), and the subsequent applyProfileLayout awaits
     /// the in-flight expected-set settling before running.
-    func reapplyActiveProfile() {
+    func reapplyActiveProfile(enforceConcealedSectionOrder: Bool = false) {
         guard let appState else { return }
         guard let activeID = activeProfileID else { return }
         do {
@@ -574,7 +576,12 @@ extension ProfileManager {
             // No previous-vs-new transition here; pass the active id as
             // both previous and current so a hook can see the apply was a
             // refresh of the same profile rather than a switch.
-            applyProfile(profile, to: appState, previousProfileID: activeID)
+            applyProfile(
+                profile,
+                to: appState,
+                previousProfileID: activeID,
+                enforceConcealedSectionOrder: enforceConcealedSectionOrder
+            )
         } catch {
             diagLog.error("reapplyActiveProfile failed: \(error)")
         }
