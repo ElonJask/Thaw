@@ -9,7 +9,7 @@ and the Sparkle appcast, unless overridden with the `release_notes` input.
 
 ## [3.0.0-alpha.4] - 2026-09-14
 
-### ### macOS 27 only
+### macOS 27 only
 
 This is one of the last alphas. We are targeting the beta release by the end of this week. Once beta lands and the core functions are stable and reliable, the codebase opens for contributions.
 
