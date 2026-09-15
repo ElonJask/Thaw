@@ -7,6 +7,49 @@ The `release.yml` workflow reads the section matching the release tag
 (`## [tag]`) and uses it as the release notes for both the GitHub Release
 and the Sparkle appcast, unless overridden with the `release_notes` input.
 
+## [3.0.0-alpha.5] - 2026-09-15
+
+**macOS 27 only · Build 105**
+
+> [!WARNING]
+> **Known macOS 27 limitations**
+>
+> Some native menu bar items may be missing or hidden. Control Center items and Shortcuts may also be unavailable in the menu bar. These are part of the same macOS 27 limitations, rather than separate Thaw bugs. We’re actively investigating ways to support these items.
+
+### Expected behavior and current limits
+
+- **Several items from one app:** some apps’ menu bar items cannot be hidden independently with the current macOS 27 mechanism. An item assigned to Hidden can remain visible when another item from the same app is assigned to Visible. [#1125](https://github.com/thaw-app/Thaw/issues/1125)
+- **App icons instead of menu bar previews:** Thaw uses an app-icon fallback when a usable capture is unavailable, including when Screen Recording permission is off. The fallback is intentional; an item disappearing entirely still needs investigation.
+- **Spacing changes:** applying spacing can restart menu bar apps so they load the new value. Each app can also add its own padding, so the same setting does not guarantee identical visible gaps.
+
+### New
+
+- **App zoom:** resize Thaw’s app UI from 75% to 200%. Use ⌘+ and ⌘−, or choose Zoom from the settings overflow menu. ⌘0 resets to 100%.
+- **Thaw Bar appearance:** the floating bar and its preview now apply your saved appearance correctly. Customize the background, tint, glass, border, and shadow using the same controls as the menu bar.
+- **Reapply Spacing:** added to Displays for when apps haven’t picked up your saved spacing. It relaunches menu bar apps to reload the setting. [#1126](https://github.com/thaw-app/Thaw/issues/1126)
+
+### Fixes
+
+- **Displays no longer pushes the sidebar out of the window.** The selector now shows connected displays only. Settings content also has 10% more room. [#1131](https://github.com/thaw-app/Thaw/issues/1131)
+- **Removed the Thaw Bar’s unwanted outline and extra shadow.** Turning Border off now removes the drawn outline. [#1125](https://github.com/thaw-app/Thaw/issues/1125)
+- **Search selections are easier to read.** The highlighted row uses an opaque background instead of another glass layer.
+- **Thaw releases its Dock presence after the floating bar closes** when no other Thaw windows need it.
+- **MacThrottle keeps a stable identity when its temperature changes**, addressing duplicate entries and hiding problems. [#1121](https://github.com/thaw-app/Thaw/issues/1121)
+
+### Menu bar reliability
+
+- Improved double-click recognition on the Thaw icon for opening Always Hidden. [#1119](https://github.com/thaw-app/Thaw/issues/1119)
+- Corrected Battery item recognition and added a fallback for manual moves when macOS ignores the position change. [#1110](https://github.com/thaw-app/Thaw/issues/1110)
+- Added checks to reject icon captures that overlap another item or belong to another app. [#1119](https://github.com/thaw-app/Thaw/issues/1119), [#1125](https://github.com/thaw-app/Thaw/issues/1125)
+- Capture sessions are reused between requests, and the screen-recording indicator is excluded from saved item order.
+- Automatic order repairs wait until startup layout restoration finishes.
+
+### Still under investigation
+
+- Some icons can still be missing or show an app-icon fallback, including Little Snitch. The broader icon reports remain open. [#1119](https://github.com/thaw-app/Thaw/issues/1119), [#1125](https://github.com/thaw-app/Thaw/issues/1125)
+- Battery snap-back, unexpected reordering, and uneven gaps are not fully resolved. [#1110](https://github.com/thaw-app/Thaw/issues/1110), [#1126](https://github.com/thaw-app/Thaw/issues/1126)
+- The reported Accessibility crash is still under investigation. This release keeps compact crash diagnostics even when regular logging is off. If Thaw crashes, attach the crash report and the files available through **Troubleshooting → Show Log Files in Finder**.
+
 ## [3.0.0-alpha.4.1] - 2026-09-14
 
 ### macOS 27 only
