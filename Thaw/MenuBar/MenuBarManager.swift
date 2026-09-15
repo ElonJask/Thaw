@@ -86,6 +86,11 @@ final class MenuBarManager {
     /// `.debounce(for:)` instead.
     private var itemCacheHotkeyObservationTask: Task<Void, Never>?
 
+    /// Task observing ``GeneralSettings/hideDockIconWhenToggling`` so an
+    /// automatic hide already in flight can be reconciled when the setting
+    /// turns on.
+    private var hideDockIconWhenTogglingObservationTask: Task<Void, Never>?
+
     @MainActor
     deinit {
         displayConfigurationsObservationTask?.cancel()
@@ -93,6 +98,7 @@ final class MenuBarManager {
         settingsWindowVisibilityCancellable?.cancel()
         appearanceConfigurationObservationTask?.cancel()
         itemCacheHotkeyObservationTask?.cancel()
+        hideDockIconWhenTogglingObservationTask?.cancel()
         attentionObservationTask?.cancel()
     }
 
@@ -200,6 +206,8 @@ final class MenuBarManager {
     private func configureCancellables() {
         averageColorRefreshCancellable?.cancel()
         averageColorRefreshCancellable = nil
+        hideDockIconWhenTogglingObservationTask?.cancel()
+        hideDockIconWhenTogglingObservationTask = nil
         var c = Set<AnyCancellable>()
 
         NSApp.publisher(for: \.currentSystemPresentationOptions)
@@ -315,6 +323,15 @@ final class MenuBarManager {
                 for await _ in changes.debounce(for: .seconds(0.5)) {
                     guard let self else { return }
                     rebuildItemHotkeys()
+                }
+            }
+
+            let general = appState.settings.general
+            hideDockIconWhenTogglingObservationTask = Task { [weak self] in
+                let changes = Observations { general.hideDockIconWhenToggling }
+                for await hideDockIcon in changes {
+                    guard let self else { return }
+                    reconcileAutomaticApplicationMenuHide(hideDockIconWhenToggling: hideDockIcon)
                 }
             }
         }
@@ -559,7 +576,8 @@ final class MenuBarManager {
                 }
 
                 // Don't continue if:
-                //   * The "HideApplicationMenus" setting isn't enabled.
+                //   * Hiding application menus isn't allowed (Advanced
+                //     setting off, or the Dock-icon setting on).
                 //   * Using the Thaw Bar.
                 //   * The menu bar is hidden by the system.
                 //   * The active space is fullscreen.
@@ -1093,6 +1111,33 @@ final class MenuBarManager {
         return hideDockIconWhenToggling ? .accessory : .regular
     }
 
+    /// How an in-flight automatic hide should react when the Dock-icon
+    /// setting changes.
+    nonisolated enum AutomaticHideReconcileAction: Equatable {
+        /// Leave the current hide state alone.
+        case none
+        /// Restore application menus and accessory activation.
+        case restoreApplicationMenus
+        /// Drop automatic-hide bookkeeping without changing policy, because
+        /// explicit UI is already regular.
+        case clearAutomaticHideState
+    }
+
+    /// Automatic overflow hiding must not survive turning on
+    /// ``GeneralSettings/hideDockIconWhenToggling``. A manual hide-menus
+    /// command is left alone. Settings and other explicit UI keep `.regular`.
+    static nonisolated func automaticHideReconcileAction(
+        hideDockIconWhenToggling: Bool,
+        isHidingApplicationMenus: Bool,
+        isManuallyHidingApplicationMenus: Bool,
+        explicitUIWantsRegularActivation: Bool
+    ) -> AutomaticHideReconcileAction {
+        guard hideDockIconWhenToggling, isHidingApplicationMenus, !isManuallyHidingApplicationMenus else {
+            return .none
+        }
+        return explicitUIWantsRegularActivation ? .clearAutomaticHideState : .restoreApplicationMenus
+    }
+
     /// Cancels a pending accessory retry so a later `.regular` activation
     /// cannot be overwritten. No-op when the pending hide itself requested
     /// `.regular`, because that path must keep its 25 ms force-activation retry.
@@ -1103,12 +1148,17 @@ final class MenuBarManager {
 
     /// Hides the application menus.
     ///
-    /// - Important: By default this uses `.regular` activation policy to hide
-    ///   menus, which briefly shows the app in the Dock. When
-    ///   ``GeneralSettings/hideDockIconWhenToggling`` is enabled, the app stays
-    ///   in `.accessory` activation policy instead, keeping the Dock icon hidden.
-    ///   Settings windows and other explicit UI still request `.regular`; a
-    ///   pending retry is cancelled or re-evaluated so it cannot hide their
+    /// - Important: By default this uses `.regular` activation so Thaw can
+    ///   take over the application-menu extra, which briefly shows the app
+    ///   in the Dock. A manual toggle (hotkey or URL) always uses that path
+    ///   so the command still hides menus.
+    ///
+    ///   When ``GeneralSettings/hideDockIconWhenToggling`` is enabled,
+    ///   automatic overflow does not call this method; presentation falls
+    ///   back to the Thaw Bar instead. If this method does run with the
+    ///   setting on and not as a manual toggle, it stays in `.accessory`
+    ///   unless explicit UI has already requested `.regular`. A pending
+    ///   retry is cancelled or re-evaluated so it cannot hide that UI's
     ///   Dock icon.
     func hideApplicationMenus(manual: Bool = false) {
         guard let appState else {
@@ -1177,6 +1227,27 @@ final class MenuBarManager {
             showApplicationMenus()
         } else {
             hideApplicationMenus(manual: true)
+        }
+    }
+
+    /// Clears an in-flight automatic hide when the Dock-icon setting turns on.
+    private func reconcileAutomaticApplicationMenuHide(hideDockIconWhenToggling: Bool) {
+        switch Self.automaticHideReconcileAction(
+            hideDockIconWhenToggling: hideDockIconWhenToggling,
+            isHidingApplicationMenus: isHidingApplicationMenus,
+            isManuallyHidingApplicationMenus: isManuallyHidingApplicationMenus,
+            explicitUIWantsRegularActivation: explicitUIWantsRegularActivation(
+                hideDockIconWhenToggling: hideDockIconWhenToggling
+            )
+        ) {
+        case .none:
+            return
+        case .restoreApplicationMenus:
+            showApplicationMenus()
+        case .clearAutomaticHideState:
+            cancelHideApplicationMenusActivationTask()
+            isHidingApplicationMenus = false
+            isManuallyHidingApplicationMenus = false
         }
     }
 

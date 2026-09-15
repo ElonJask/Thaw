@@ -68,4 +68,52 @@ struct HideApplicationMenusPolicyTests {
 
         #expect(policy == .regular)
     }
+
+    @Test("Turning the setting on restores an automatic hide")
+    func turningSettingOnRestoresAutomaticHide() {
+        let action = MenuBarManager.automaticHideReconcileAction(
+            hideDockIconWhenToggling: true,
+            isHidingApplicationMenus: true,
+            isManuallyHidingApplicationMenus: false,
+            explicitUIWantsRegularActivation: false
+        )
+
+        #expect(action == .restoreApplicationMenus)
+    }
+
+    @Test("Turning the setting on while explicit UI is up only clears automatic hide state")
+    func turningSettingOnDuringExplicitUIClearsAutomaticHideState() {
+        let action = MenuBarManager.automaticHideReconcileAction(
+            hideDockIconWhenToggling: true,
+            isHidingApplicationMenus: true,
+            isManuallyHidingApplicationMenus: false,
+            explicitUIWantsRegularActivation: true
+        )
+
+        #expect(action == .clearAutomaticHideState)
+    }
+
+    @Test("Turning the setting on leaves a manual hide alone")
+    func turningSettingOnPreservesManualHide() {
+        let action = MenuBarManager.automaticHideReconcileAction(
+            hideDockIconWhenToggling: true,
+            isHidingApplicationMenus: true,
+            isManuallyHidingApplicationMenus: true,
+            explicitUIWantsRegularActivation: false
+        )
+
+        #expect(action == .none)
+    }
+
+    @Test("Turning the setting off leaves hide state alone")
+    func turningSettingOffDoesNotReconcileHideState() {
+        let action = MenuBarManager.automaticHideReconcileAction(
+            hideDockIconWhenToggling: false,
+            isHidingApplicationMenus: true,
+            isManuallyHidingApplicationMenus: false,
+            explicitUIWantsRegularActivation: false
+        )
+
+        #expect(action == .none)
+    }
 }

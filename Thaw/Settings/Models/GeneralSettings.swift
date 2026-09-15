@@ -36,10 +36,11 @@ final class GeneralSettings {
         }
     }
 
-    /// A Boolean value that indicates whether menu bar toggles keep the
-    /// Dock icon hidden. When `true`, menu bar toggles stay in accessory
-    /// activation policy so the Dock icon does not flash; settings windows
-    /// and other explicit UI still activate normally.
+    /// A Boolean value that indicates whether automatic menu bar reveals
+    /// keep the Dock icon hidden. When `true`, overflow uses the Thaw Bar
+    /// instead of hiding application menus (which would flash the Dock).
+    /// A manual hide-menus command still uses regular activation. Settings
+    /// windows and other explicit UI still activate normally.
     var hideDockIconWhenToggling = Defaults.DefaultValue.hideDockIconWhenToggling {
         didSet {
             guard oldValue != hideDockIconWhenToggling else { return }
