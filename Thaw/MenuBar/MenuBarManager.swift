@@ -1066,7 +1066,10 @@ final class MenuBarManager {
 
     /// Hides the application menus.
     ///
-    /// - Important: Uses `.regular` activation policy to hide menus, which briefly shows the app in the Dock.
+    /// - Important: By default this uses `.regular` activation policy to hide
+    ///   menus, which briefly shows the app in the Dock. When
+    ///   ``GeneralSettings/hideDockIconWhenToggling`` is enabled, the app stays
+    ///   in `.accessory` activation policy instead, keeping the Dock icon hidden.
     func hideApplicationMenus(manual: Bool = false) {
         guard let appState else {
             diagLog.error("Error hiding application menus: Missing app state")
@@ -1087,13 +1090,21 @@ final class MenuBarManager {
         Task { @MainActor in
             guard isHidingApplicationMenus else { return }
 
-            appState.activate(withPolicy: .regular)
+            // When the user prefers a clean Dock, keep the app in accessory
+            // activation policy while toggling the menu bar. This prevents the
+            // Dock icon from flashing on every reveal/hide. Settings windows
+            // and other explicit UI still use the regular policy elsewhere.
+            if appState.settings.general.hideDockIconWhenToggling {
+                appState.activate(withPolicy: .accessory)
+            } else {
+                appState.activate(withPolicy: .regular)
+            }
 
             // Force activation again after a micro-delay.
             // The first activation after policy change can sometimes be ignored by the system.
             try? await Task.sleep(for: .milliseconds(25))
             guard isHidingApplicationMenus else { return }
-            appState.activate()
+            appState.activate(withPolicy: appState.settings.general.hideDockIconWhenToggling ? .accessory : .regular)
         }
     }
 

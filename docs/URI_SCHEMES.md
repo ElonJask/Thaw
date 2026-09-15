@@ -109,6 +109,7 @@ Read and write Thaw settings via `thaw://` URLs, gated by a security whitelist. 
 | `enableDiagnosticLogging`                 | Bool | Enable debug logging                         |
 | `customIceIconIsTemplate`                 | Bool | Custom icon renders as template              |
 | `showIceIcon`                             | Bool | Show the Thaw icon in menu bar               |
+| `hideDockIconWhenToggling`                | Bool | Hide the Dock icon when toggling the menu bar |
 | `iceBarLocationOnHotkey`                  | Bool | Thaw Bar appears at mouse location on hotkey     |
 | `enableMenuBarItemOverflow`                | Bool | Eject items that would fall behind the notch |
 | `useThawBarOnNotchOverflow`                | Bool | Send ejected overflow items to the Thaw Bar  |
