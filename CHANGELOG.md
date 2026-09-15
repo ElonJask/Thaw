@@ -9,7 +9,11 @@ and the Sparkle appcast, unless overridden with the `release_notes` input.
 
 ## [3.0.0-alpha.4] - 2026-09-14
 
+### ### macOS 27 only
+
 This is one of the last alphas. We are targeting the beta release by the end of this week. Once beta lands and the core functions are stable and reliable, the codebase opens for contributions.
+
+The experimentation phase is over. This release consolidates the UI into a mix of Thaw 2 and fresh polish, keeping everything native to macOS and consistent with the system. If you have a suggestion or an improvement, we want to hear it.
 
 Settings is rebuilt. The fifteen-pane sidebar is gone. What replaces it is a grouped sidebar with no nested tabs, a dedicated Thaw Bar page with a live preview, a customizable sidebar, and a separate appearance for the Thaw Bar itself.
 
@@ -39,6 +43,7 @@ Something broke? [Open an issue](https://github.com/thaw-app/Thaw/issues/new/cho
 
 ### Menu Bar editor
 
+- **Section changes appear without another scan.** Moving an item between Hidden and Always Hidden now updates its editor row from the saved assignment, instead of waiting for Accessibility discovery to finish. The editor no longer leaves the item in its old row while that scan catches up. This changes the preview, not how physical moves are verified.
 - **One short instruction instead of four.** The heading, drag instructions, the Command-drag tip, and the macOS limitation note collapsed into a single line beside the editor. The OS limitation is a footnote. The refusal notice still appears when a move fails.
 - **Empty groups state is a compact row.** The 110pt centered empty state is gone. A one-line footnote says what to do instead.
 - **Command-drag toggle moved.** "Show all sections when Command-dragging" moved from Visibility to Layout's Advanced layout controls disclosure, where the other advanced layout behaviors live.
@@ -64,6 +69,15 @@ Something broke? [Open an issue](https://github.com/thaw-app/Thaw/issues/new/cho
 - **Arrangement picker added.** "Who arranges items" (manual vs. automatic) is now at the top of Simple Mode. The core loop is self-contained: decide who arranges, then drag.
 - **Profiles removed.** Simple Mode is the everyday surface. Profiles are a power-user feature available in the full window.
 
+### Menu bar reliability
+
+- **Moves use targeted scans.** Move preparation and verification ask known menu bar owners for fresh bounds instead of repeatedly scanning every running app. New and unresolved owners are still checked, and apps previously found without an item are checked again after a short interval. Cached bounds never count as proof that a move succeeded.
+- **Section moves no longer interrupt one another.** Preparing an item's position, verifying the move, and committing its section now share one queue slot. Cancelling a queued move no longer releases another move's slot. Cross-section destination handling also fixes three cases that placed an item on the wrong side of a divider.
+- **Discovery makes progress under load.** Scans rotate through app owners so slow apps cannot repeatedly use up the budget before later owners are reached. Late scan results cannot overwrite newer state, and incomplete scans cannot discard retained items or replace your saved order.
+- **Thaw's controls keep their identities.** Position-key matching distinguishes the Visible, Hidden, and Always Hidden controls by their titles instead of treating a lone nearby control as a match.
+- **Manual arrangement skips the remaining repair paths.** Restriction changes no longer schedule repairs in manual mode. Corrective pulses, automatic unparking, boundary repairs, and structural position rewrites also stop when manual mode is selected during a wait. Refused manual-mode moves no longer count toward repair-failure suppression. Native Command-dragging remains yours to control; hiding and revealing still work.
+- **Droppy's persistent panel no longer blocks automatic rehide.** Thaw excludes Droppy's layer-100 overlay from menu detection while retaining its standard popup-menu level. Existing candidate windows are also tracked before their owner's item reaches the cache, so discovering an app no longer turns its already-open panel into a newly opened menu.
+
 ### Fixes
 
 - **Capture jitter on 5 items fixed.** Five menu bar items (1Password, Hookshot, WisprFlow, CleanShotX, Okta) oscillated 1 pixel on every capture cycle because of sub-pixel rounding. The capture bounds tolerance is raised from 0.5pt to 1.0pt, so the capture loop stops spinning while Settings is open.
@@ -82,6 +96,7 @@ Something broke? [Open an issue](https://github.com/thaw-app/Thaw/issues/new/cho
 - An app with several menu bar items that renamed them in the macOS 27 upgrade may need those items reassigned once by hand.
 - Items whose title is live text (a temperature, a clock, a transfer rate) are placed by macOS from memory rather than from the layout table. They can land next to where you put them rather than exactly there.
 - Flux cannot be seen or properly handled by Thaw.
+- Toggling Hidden can briefly show Always Hidden items in the menu bar during the redraw, even though they return to the correct concealed state. This visual flash remains unresolved.
 
 ---
 
