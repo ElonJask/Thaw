@@ -321,6 +321,17 @@ nonisolated enum SearchIndex {
             property: .general("showSettingDescriptions")
         ),
         SearchEntry(
+            id: "general.hideDockIconWhenToggling",
+            titleKey: "Hide Dock icon when toggling the menu bar",
+            titleText: "Hide Dock icon when toggling the menu bar",
+            descriptionText: "Keep the app's icon out of the Dock when showing or hiding hidden menu bar items. Settings windows still appear normally.",
+            pane: .general,
+            sectionKey: nil,
+            sectionText: nil,
+            keywords: ["dock", "icon", "hide", "toggle", "menu bar", "accessory"],
+            property: .general("hideDockIconWhenToggling")
+        ),
+        SearchEntry(
             id: "general.simpleMode",
             titleKey: "Simple Mode",
             titleText: "Simple Mode",

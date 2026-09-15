@@ -146,6 +146,15 @@ final class MenuBarManager {
     /// by a manual toggle (URL/hotkey), rather than automatically by section state.
     private var isManuallyHidingApplicationMenus = false
 
+    /// The delayed force-activation started by ``hideApplicationMenus(manual:)``.
+    /// Cancelled when explicit UI requests `.regular`, so the retry cannot
+    /// reapply `.accessory` and hide a settings window's Dock icon.
+    private var hideApplicationMenusActivationTask: Task<Void, Never>?
+
+    /// Whether that pending retry would apply `.accessory`. `.regular`
+    /// activations from the hide path itself must keep the 25 ms retry.
+    private var pendingHideActivationIsAccessory = false
+
     /// The panel that contains the Thaw Bar interface.
     let iceBarPanel = IceBarPanel()
 
@@ -556,7 +565,10 @@ final class MenuBarManager {
                 //   * The active space is fullscreen.
                 //   * The settings window is visible.
                 guard
-                    appState.settings.advanced.hideApplicationMenus,
+                    MenuBarSection.allowsHidingApplicationMenus(
+                        hideApplicationMenus: appState.settings.advanced.hideApplicationMenus,
+                        hideDockIconWhenToggling: appState.settings.general.hideDockIconWhenToggling
+                    ),
                     !appState.settings.displaySettings.configurationForActiveDisplay().useIceBar,
                     !isMenuBarHiddenBySystem,
                     !appState.activeSpace.isFullscreen,
@@ -1064,12 +1076,40 @@ final class MenuBarManager {
         }
     }
 
+    /// Chooses the activation policy used while hiding application menus.
+    ///
+    /// Hiding the frontmost app's menus requires becoming a regular app, which
+    /// shows Thaw in the Dock. When the user prefers a clean Dock, stay in
+    /// accessory instead — unless explicit UI has already requested regular
+    /// activation, in which case that request wins and the Dock icon stays.
+    static nonisolated func activationPolicyForHidingApplicationMenus(
+        hideDockIconWhenToggling: Bool,
+        explicitUIWantsRegularActivation: Bool,
+        isManualToggle: Bool = false
+    ) -> NSApplication.ActivationPolicy {
+        if explicitUIWantsRegularActivation || isManualToggle {
+            return .regular
+        }
+        return hideDockIconWhenToggling ? .accessory : .regular
+    }
+
+    /// Cancels a pending accessory retry so a later `.regular` activation
+    /// cannot be overwritten. No-op when the pending hide itself requested
+    /// `.regular`, because that path must keep its 25 ms force-activation retry.
+    func invalidatePendingAccessoryActivation() {
+        guard pendingHideActivationIsAccessory else { return }
+        cancelHideApplicationMenusActivationTask()
+    }
+
     /// Hides the application menus.
     ///
     /// - Important: By default this uses `.regular` activation policy to hide
     ///   menus, which briefly shows the app in the Dock. When
     ///   ``GeneralSettings/hideDockIconWhenToggling`` is enabled, the app stays
     ///   in `.accessory` activation policy instead, keeping the Dock icon hidden.
+    ///   Settings windows and other explicit UI still request `.regular`; a
+    ///   pending retry is cancelled or re-evaluated so it cannot hide their
+    ///   Dock icon.
     func hideApplicationMenus(manual: Bool = false) {
         guard let appState else {
             diagLog.error("Error hiding application menus: Missing app state")
@@ -1086,30 +1126,41 @@ final class MenuBarManager {
             isManuallyHidingApplicationMenus = true
         }
 
-        // Ensure this happens on the main thread
-        Task { @MainActor in
+        cancelHideApplicationMenusActivationTask()
+        let hideDockIcon = appState.settings.general.hideDockIconWhenToggling
+        let policy = Self.activationPolicyForHidingApplicationMenus(
+            hideDockIconWhenToggling: hideDockIcon,
+            explicitUIWantsRegularActivation: explicitUIWantsRegularActivation(
+                hideDockIconWhenToggling: hideDockIcon
+            ),
+            isManualToggle: manual
+        )
+        pendingHideActivationIsAccessory = policy == .accessory
+        hideApplicationMenusActivationTask = Task { @MainActor in
             guard isHidingApplicationMenus else { return }
 
-            // When the user prefers a clean Dock, keep the app in accessory
-            // activation policy while toggling the menu bar. This prevents the
-            // Dock icon from flashing on every reveal/hide. Settings windows
-            // and other explicit UI still use the regular policy elsewhere.
-            if appState.settings.general.hideDockIconWhenToggling {
-                appState.activate(withPolicy: .accessory)
-            } else {
-                appState.activate(withPolicy: .regular)
-            }
+            appState.activate(withPolicy: policy)
 
             // Force activation again after a micro-delay.
             // The first activation after policy change can sometimes be ignored by the system.
             try? await Task.sleep(for: .milliseconds(25))
-            guard isHidingApplicationMenus else { return }
-            appState.activate(withPolicy: appState.settings.general.hideDockIconWhenToggling ? .accessory : .regular)
+            guard !Task.isCancelled, isHidingApplicationMenus else { return }
+            let retryHideDockIcon = appState.settings.general.hideDockIconWhenToggling
+            let retryPolicy = Self.activationPolicyForHidingApplicationMenus(
+                hideDockIconWhenToggling: retryHideDockIcon,
+                explicitUIWantsRegularActivation: explicitUIWantsRegularActivation(
+                    hideDockIconWhenToggling: retryHideDockIcon
+                ),
+                isManualToggle: manual
+            )
+            pendingHideActivationIsAccessory = retryPolicy == .accessory
+            appState.activate(withPolicy: retryPolicy)
         }
     }
 
     /// Shows the application menus.
     func showApplicationMenus() {
+        cancelHideApplicationMenusActivationTask()
         guard let appState else {
             diagLog.error("Error showing application menus: Missing app state")
             return
@@ -1127,6 +1178,25 @@ final class MenuBarManager {
         } else {
             hideApplicationMenus(manual: true)
         }
+    }
+
+    private func cancelHideApplicationMenusActivationTask() {
+        hideApplicationMenusActivationTask?.cancel()
+        hideApplicationMenusActivationTask = nil
+        pendingHideActivationIsAccessory = false
+    }
+
+    /// Settings, permissions, search, and the Thaw Bar all activate as a
+    /// regular app. A hide-Dock-icon retry must not overwrite that. The
+    /// current activation policy is the fallback for the 25 ms window after
+    /// explicit UI has already switched to `.regular` but before presentation
+    /// flags catch up.
+    private func explicitUIWantsRegularActivation(hideDockIconWhenToggling: Bool) -> Bool {
+        guard let appState else { return false }
+        if appState.explicitUIWantsRegularActivation {
+            return true
+        }
+        return hideDockIconWhenToggling && NSApp.activationPolicy() == .regular
     }
 
     // MARK: - Zen Mode

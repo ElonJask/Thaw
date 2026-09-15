@@ -176,6 +176,7 @@ final class GeneralSettingsTests {
         #expect(settings.iceBarLocation == Defaults.DefaultValue.iceBarLocation)
         #expect(settings.showOnHover == Defaults.DefaultValue.showOnHover)
         #expect(settings.autoRehide == Defaults.DefaultValue.autoRehide)
+        #expect(settings.hideDockIconWhenToggling == Defaults.DefaultValue.hideDockIconWhenToggling)
         #expect(settings.rehideStrategy == Defaults.DefaultValue.rehideStrategy)
         #expect(settings.rehideInterval == Defaults.DefaultValue.rehideInterval)
         #expect(settings.lastCustomIceIcon == nil)

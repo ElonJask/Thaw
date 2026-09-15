@@ -36,11 +36,10 @@ final class GeneralSettings {
         }
     }
 
-    /// A Boolean value that indicates whether the app's icon appears
-    /// in the Dock when toggling the menu bar. When `true`, menu bar
-    /// toggles keep the app in accessory activation policy so the Dock
-    /// icon does not flash; settings windows and other explicit UI still
-    /// activate normally.
+    /// A Boolean value that indicates whether menu bar toggles keep the
+    /// Dock icon hidden. When `true`, menu bar toggles stay in accessory
+    /// activation policy so the Dock icon does not flash; settings windows
+    /// and other explicit UI still activate normally.
     var hideDockIconWhenToggling = Defaults.DefaultValue.hideDockIconWhenToggling {
         didSet {
             guard oldValue != hideDockIconWhenToggling else { return }
