@@ -7,6 +7,22 @@ The `release.yml` workflow reads the section matching the release tag
 (`## [tag]`) and uses it as the release notes for both the GitHub Release
 and the Sparkle appcast, unless overridden with the `release_notes` input.
 
+## [2.1.0-beta.4] - 2026-09-20
+
+**macOS 26 only · Build 60**
+
+A bug-fix pass on the menu bar layout engine and its settings. Seven field reports are fixed here, from parked reorders that reverted to the screen-recording indicator.
+
+### Fixes
+
+1. **Parked reorders land again.** While a parked item is held, WindowServer reports it at the display origin and the parked lane reads as reflowed by roughly a thousand points. Rebuilding the release point from that mid-hold snapshot landed the item past the end of the lane, so every hidden-section reorder was refused and the user saw "could not be kept in its new position". A parked teleport now releases at the point planned just before the press. A source-anchored retry keeps its planned point only when the destination is parked; against a visible destination the reflow is real and the fresh point is correct. [#1074](https://github.com/thaw-app/Thaw/issues/1074), [#1102](https://github.com/thaw-app/Thaw/issues/1102), [#1104](https://github.com/thaw-app/Thaw/issues/1104), [#1133](https://github.com/thaw-app/Thaw/issues/1133)
+2. **A quit app no longer leaves a dead icon in the Thaw Bar.** A temporarily shown item whose owning process had terminated was re-queued for up to ten not-found attempts before being dropped. Thaw now probes the source PID and drops the item immediately when it is gone, clearing the pending relocation so it is not resurrected later. [#1149](https://github.com/thaw-app/Thaw/issues/1149)
+3. **Scrolling on the Thaw icon reveals the hidden section again.** The reveal gesture only accepted empty menu bar space, which deliberately excludes the Thaw icon, so scrolling directly on the icon did nothing. The icon region is now accepted as well. [#1073](https://github.com/thaw-app/Thaw/issues/1073)
+4. **New items land where the "New items" placeholder sits.** Default (no-anchor) placement inserted a new item at the section end, while the Layout editor badge defaults to the section start, so a new app appeared next to the Thaw icon instead of at the placeholder. Default placement now uses the same slot the badge defaults to. [#1069](https://github.com/thaw-app/Thaw/issues/1069)
+5. **The Smart rehide interval is visible where it is used.** Smart falls back to the same interval Timed uses, but the slider only appeared under Timed, so the value that governed Smart could not be seen or changed. The slider now appears under both. Focus rehides on activation and ignores the interval. [#1049](https://github.com/thaw-app/Thaw/issues/1049)
+6. **A renamed anchor still places new items.** A "New items" anchor saved under a helper's name stopped matching after the namespace was canonicalized, so new items fell back to the section default. Anchor lookup now canonicalizes, and the placement names the live item. [#1069](https://github.com/thaw-app/Thaw/issues/1069)
+7. **App-icon mode stops sampling the menu bar.** "Always use app icon for menu bar items" only changed what Thaw drew; it still captured the menu bar for previews, which is what raises the screen-recording indicator. With the setting on, Thaw no longer captures. [#1051](https://github.com/thaw-app/Thaw/issues/1051)
+
 ## [3.0.0-alpha.6] - 2026-09-20
 
 **macOS 27 only · Build 106**
